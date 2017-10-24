@@ -136,7 +136,7 @@ class DatabaseWrapper(BaseDatabaseWrapper):
     http://pypi.python.org/pypi/ibm_db).
     """
     data_types = {}
-    vendor = 'DB2'
+    vendor = 'db2'
     operators = {
         "exact": "= %s",
         "iexact": "LIKE UPPER(%s) ESCAPE '\\'",
