@@ -7,11 +7,12 @@ class XMLField(models.TextField):
     description = _("XML text")
 
     def __init__(self, verbose_name=None, name=None, schema_path=None, **kwargs):
-        from ibm_db_django.expressions import XMLExists
+        from ibm_db_django.expressions import XMLExists, XMLSearch
 
         self.schema_path = schema_path
         models.Field.__init__(self, verbose_name, name, **kwargs)
         self.class_lookups['xmlexists'] = XMLExists
+        self.class_lookups['search'] = XMLSearch
 
     def get_internal_type(self):
         return "XMLField"

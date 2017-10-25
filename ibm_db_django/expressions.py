@@ -1,5 +1,5 @@
 from django.db.models.expressions import Expression, RawSQL, F
-from django.db.models.lookups import BuiltinLookup
+from django.db.models.lookups import BuiltinLookup, Search
 from django.utils.encoding import python_2_unicode_compatible
 from django.utils import six
 
@@ -113,3 +113,55 @@ class XMLExists(BuiltinLookup):
         lhs, lhs_params = compiler.compile(self.lhs)
         rhs = "'%s'" % self.rhs.replace("'", "''")
         return ('XMLEXISTS(%s PASSING %s AS "doc")' % (rhs, lhs), [])
+
+
+@python_2_unicode_compatible
+class XPathText(Expression):
+    template = 'XMLQUERY(%(query)s PASSING %(field_name)s as %(alias)s)'
+
+    def __init__(self, xpath, text, operator='contains'):
+        super(XPathText, self).__init__()
+        self.xpath, self.text = xpath, text
+        if operator not in (
+                'contains', '=', '>', '<', '>=', '<=', '!='):
+            raise ValueError("Invalid xpath text search operator %s" %
+                operator)
+        self.operator = operator
+
+    def as_sql(self, compiler, connection):
+        xpath = self.xpath.replace("'", "&apos;")
+        text = ("%s" % self.text).replace("'", "&apos;").replace('"', '\\"')
+        if isinstance(text, six.string_types) or self.operator not in (
+                '>', '<', '>=', '<='):
+            text = '"%s"' % text
+        if self.operator == 'contains':
+            cmp_tmpl = '. contains(%s)'
+        else:
+            cmp_tmpl = '. %s %%s' % self.operator
+        cmp_expr = cmp_tmpl % text
+        sql = """'@xpath:''%s[%s]'''""" % (xpath, cmp_expr)
+        return sql, []
+
+    def get_group_by_cols(self):
+        return []
+
+    def __str__(self):
+        return "@xpath:%r[. contains(%r)]" % (self.xpath, self.text)
+
+    def __repr__(self):
+        return "<%s: %s>" % (self.__class__.__name__, self)
+
+    def resolve_expression(self, *args, **kwargs):
+        return self
+
+
+class XMLSearch(Search):
+    lookup_name = 'search'
+
+    def as_sql(self, compiler, connection):
+        lhs, lhs_params = self.process_lhs(compiler, connection)
+        rhs, rhs_params = self.process_rhs(compiler, connection)
+        sql_template = connection.ops.fulltext_search_sql(field_name=lhs)
+        if r"%s" in sql_template:
+            sql_template = sql_template % rhs
+        return sql_template, lhs_params + rhs_params

@@ -265,8 +265,7 @@ class DatabaseOperations (BaseDatabaseOperations):
             return " %s"
 
     def fulltext_search_sql(self, field_name):
-        sql = "WHERE %s = ?" % field_name
-        return sql
+        return "CONTAINS(%s, %%s)=1" % field_name
 
     # Function to return value of auto-generated field of last executed insert query.
     def last_insert_id(self, cursor, table_name, pk_name):
